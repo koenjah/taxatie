@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader } from '@googlemaps/js-api-loader';
 
 interface AddressInputProps {
@@ -6,10 +6,10 @@ interface AddressInputProps {
 }
 
 const AddressInput: React.FC<AddressInputProps> = ({ onSubmit }) => {
-  console.log('Rendering AddressInput');
   const [address, setAddress] = useState('');
-  const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const autocompleteRef = useRef<google.maps.places.Autocomplete | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const initAutocomplete = async () => {
@@ -21,21 +21,20 @@ const AddressInput: React.FC<AddressInputProps> = ({ onSubmit }) => {
         });
 
         await loader.load();
-        console.log('Google Maps API loaded successfully');
 
-        const autocompleteInstance = new google.maps.places.Autocomplete(
-          document.getElementById('address-input') as HTMLInputElement,
-          { types: ['address'], componentRestrictions: { country: 'nl' } }
-        );
-        setAutocomplete(autocompleteInstance);
+        if (inputRef.current) {
+          autocompleteRef.current = new google.maps.places.Autocomplete(inputRef.current, {
+            types: ['address'],
+            componentRestrictions: { country: 'nl' }
+          });
 
-        autocompleteInstance.addListener('place_changed', () => {
-          const place = autocompleteInstance.getPlace();
-          if (place.formatted_address) {
-            setAddress(place.formatted_address);
-            console.log('Selected address:', place.formatted_address);
-          }
-        });
+          autocompleteRef.current.addListener('place_changed', () => {
+            const place = autocompleteRef.current?.getPlace();
+            if (place?.formatted_address) {
+              setAddress(place.formatted_address);
+            }
+          });
+        }
       } catch (err) {
         console.error('Error loading Google Maps API:', err);
         setError('Er is een fout opgetreden bij het laden van de adres-autocomplete. Probeer het later opnieuw.');
@@ -48,36 +47,34 @@ const AddressInput: React.FC<AddressInputProps> = ({ onSubmit }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (address.trim()) {
-      console.log('Submitting address:', address);
       onSubmit(address);
     } else {
-      setError('Voer alstublieft een geldig adres in.');
+      setError('Selecteer alstublieft een geldig adres uit de lijst.');
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen px-4 sm:px-6 lg:px-8">
-      <h2 className="text-4xl font-bold mb-8 text-center">Voer uw adres in</h2>
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      <form onSubmit={handleSubmit} className="w-full max-w-md">
-        <div className="mb-6">
-          <input
-            id="address-input"
-            type="text"
-            value={address}
-            onChange={(e) => setAddress(e.target.value)}
-            placeholder="Straat, huisnummer, postcode, plaats"
-            className="w-full px-4 py-3 rounded-lg bg-white text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            required
-          />
-        </div>
-        <button
-          type="submit"
-          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white font-semibold py-3 rounded-lg text-xl shadow-lg hover:shadow-xl transition duration-300 ease-in-out transform hover:-translate-y-1"
-        >
-          Taxatie Aanvragen
-        </button>
-      </form>
+      <div className="w-full max-w-md">
+        <h2 className="text-4xl font-bold mb-8 text-center">Voer uw adres in</h2>
+        {error && <p className="text-accent mb-4">{error}</p>}
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div>
+            <input
+              ref={inputRef}
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Straat, huisnummer, postcode, plaats"
+              className="input-primary"
+              required
+            />
+          </div>
+          <button type="submit" className="btn-primary w-full">
+            Taxatie Aanvragen
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
